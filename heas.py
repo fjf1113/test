@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 import numpy as np
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeRegressor
 from sklearn import preprocessing
 from sklearn.metrics import r2_score
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.model_selection import cross_val_score
 from sklearn.svm import SVR
 from sklearn.kernel_ridge import KernelRidge
@@ -15,7 +15,7 @@ from sklearn.model_selection import KFold
 from sklearn import linear_model
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_squared_error
-from sklearn.neural_network import MLPClassifier
+from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 
@@ -23,113 +23,135 @@ data = pd.read_csv('mmc2.csv', index_col=0) #列索引为第一行
 # print(data.shape)
 X = data.iloc[1:, :-1]
 y = data.iloc[1:, -1]
-test_size_list = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
-train_size = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3] #训练集样本的占比
+# 变化训练集和测试集划分比例对模型性能的影响
+ratios = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
-#线性回归rmse模型
-rmses_lr = []
-for test_size in test_size_list:
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=0)
-    model = LinearRegression()
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    rmses_lr.append(rmse)
-print(rmses_lr)
+for ratio in ratios:
+    errors = {
+        'lin': [],
+        'poly': [],
+        'svr.l': [],
+        'svr.p': [],
+        'svr.r': [],
+        'cart': [],
+        'bpnn': [],
+        'knn': []
+    }
+    ratio_errors = []
+    #100次平均rmse
+    for i in range(100):
+        X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=ratio, random_state=42)
 
-#svrr模型
-rmses_svrr = []
-for test_size in test_size_list:
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=0)
-    model = SVR(kernel='rbf')
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    rmses_svrr.append(rmse)
-print(rmses_svrr)
-
-#svrp模型
-rmses_svrp = []
-for test_size in test_size_list:
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=0)
-    model = SVR(kernel='poly')
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    rmses_svrp.append(rmse)
-print(rmses_svrp)
-
-#svrl模型
-rmses_svrl = []
-for test_size in test_size_list:
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=0)
-    model = SVR(kernel='linear')
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    rmses_svrl.append(rmse)
-print(rmses_svrl)
-
-#knn模型
-rmses_knn = []
-for test_size in test_size_list:
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=0)
-    model = KNeighborsClassifier()
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    rmses_knn.append(rmse)
-print(rmses_knn)
-
-#cart决策树模型
-rmses_cart = []
-for test_size in test_size_list:
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=0)
-    model = DecisionTreeClassifier()
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    rmses_cart.append(rmse)
-print(rmses_cart)
-
-#bpnn模型
-rmses_bpnn = []
-for test_size in test_size_list:
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=0)
-    model =MLPClassifier(max_iter=10000)
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    rmses_bpnn.append(rmse)
-print(rmses_bpnn)
-
-#poly模型
-rmses_poly = []
-for test_size in test_size_list:
-    poly_features = PolynomialFeatures(degree=2)
-    X_poly = poly_features.fit_transform(X)
-    X_train, X_test, y_train, y_test = train_test_split(X_poly, y, test_size=test_size, random_state=0)
-
-    model = make_pipeline(LinearRegression())
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    rmses_poly.append(rmse)
-print(rmses_poly)
+        #lr
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        ratio_errors.append(rmse)
+    errors['lin'].append(np.mean(ratio_errors))
+    # print(errors)
 
 
-plt.plot(train_size, rmses_poly, 'o-', color='blue', label= "poly")
-plt.plot(train_size, rmses_lr, 'o-',  color='red', label= "lr")
-plt.plot(train_size, rmses_bpnn, 'o-',  color='black', label= "bpnn")
-plt.plot(train_size, rmses_cart, 'o-',  color='green', label= "cart")
-plt.plot(train_size, rmses_knn, 'o-',  color='y', label= "knn")
-plt.plot(train_size, rmses_svrl, 'o-',  color='m', label= "svrl")
-plt.plot(train_size, rmses_svrp, 'o-',  color='c', label= "svrp")
-plt.plot(train_size, rmses_svrr, 'o-',  color='aqua', label= "svrr")
-plt.title('LinearRegression')
-plt.xlabel('train_size')
-plt.ylabel('RMSE')
-plt.legend()
-plt.show()
+    # for i in range(100):
+    #     X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=ratio, random_state=42)
+    #
+    #     #poly
+    #     poly = PolynomialFeatures(degree=2)
+    #     X_train_poly = poly.fit_transform(X_train)
+    #     X_test_poly = poly.transform(X_test)
+    #     model = LinearRegression
+    #     model.fit(X_train_poly, y_train)
+    #     y_pred = model.predict(X_test_poly)
+    #     mse = mean_squared_error(y_test, y_pred)
+    #     rmse = np.sqrt(mse)
+    #     ratio_errors.append(rmse)
+    # errors['poly'].append(np.mean(ratio_errors))
+
+    # svrl
+    for i in range(100):
+        X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=ratio, random_state=42)
+        model = SVR(kernel='linear')
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        ratio_errors.append(rmse)
+    errors['svr.l'].append(np.mean(ratio_errors))
+
+    # svrr
+    for i in range(100):
+        X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=ratio, random_state=42)
+
+        model = SVR(kernel='rbf')
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        ratio_errors.append(rmse)
+    errors['svr.r'].append(np.mean(ratio_errors))
+
+    # svrp
+    for i in range(100):
+        X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=ratio, random_state=42)
+
+        model = SVR(kernel='poly')
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        ratio_errors.append(rmse)
+    errors['svr.p'].append(np.mean(ratio_errors))
+
+    # tree
+    for i in range(100):
+        X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=ratio, random_state=42)
+
+        model = DecisionTreeRegressor()
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        ratio_errors.append(rmse)
+    errors['cart'].append(np.mean(ratio_errors))
+
+    # # bpnn
+    # for i in range(100):
+    #     X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=ratio, random_state=42)
+    #
+    #     model = MLPRegressor(hidden_layer_sizes=(100,), max_iter=100000)
+    #     model.fit(X_train, y_train)
+    #     y_pred = model.predict(X_test)
+    #     mse = mean_squared_error(y_test, y_pred)
+    #     rmse = np.sqrt(mse)
+    #     ratio_errors.append(rmse)
+    # errors['bpnn'].append(np.mean(ratio_errors))
+
+    # knn
+    for i in range(100):
+        X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=ratio, random_state=42)
+
+        model = KNeighborsRegressor()
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        ratio_errors.append(rmse)
+    errors['knn'].append(np.mean(ratio_errors))
+    print(errors)
+
+# plt.plot(ratios, errors['poly'], 'o-', color='blue', label= "poly")
+# plt.plot(ratios, errors['lr'], 'o-',  color='red', label= "lr")
+# plt.plot(ratios, errors['bpnn'], 'o-',  color='black', label= "bpnn")
+# plt.plot(train_size, rmses_cart, 'o-',  color='green', label= "cart")
+# plt.plot(train_size, rmses_knn, 'o-',  color='y', label= "knn")
+# plt.plot(train_size, rmses_svrl, 'o-',  color='m', label= "svrl")
+# plt.plot(train_size, rmses_svrp, 'o-',  color='c', label= "svrp")
+# plt.plot(train_size, rmses_svrr, 'o-',  color='aqua', label= "svrr")
+# plt.title('LinearRegression')
+# plt.xlabel('train_size')
+# plt.ylabel('RMSE')
+# plt.legend()
+# plt.show()
 
 
